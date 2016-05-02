@@ -1,4 +1,5 @@
 cookies==2.2.1
+geopy==1.11.0
 pushbullet.py==0.10.0
 python-forecastio==1.3.4
 python-magic==0.4.11
