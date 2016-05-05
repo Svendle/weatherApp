@@ -5,50 +5,65 @@ from pushbullet import Pushbullet
 from geopy.geocoders import Nominatim
 
 
-geolocator = Nominatim()
+def main(argv):
+    geolocator = Nominatim()
+    pb = Pushbullet(settings.pushBulletApiKey)
+    print(pb.devices)
+    # push = pb.push_note("Today's Weather Update", "It's so cold. You should wear a jacket.")
 
-pb = Pushbullet(settings.pushBulletApiKey)
+    location = geolocator.geocode(settings.home)
+    forecast = forecastio.load_forecast(settings.forecastioKey,location.latitude ,location.longitude )
 
-print(pb.devices)
-# push = pb.push_note("Today's Weather Update", "It's so cold. You should wear a jacket.")
+    precipType = forecast.daily().data[0].precipType
+    precipIntensity = forecast.daily().data[0].precipIntensity
+    today = processDay(forecast)
 
-location = geolocator.geocode(settings.home)
 
-forecast = forecastio.load_forecast(settings.forecastioKey,location.latitude ,location.longitude )
+    msg = 'You should wear '
+    clothingOption = 'summer clothes'
+    for key in sorted(settings.tempPreference, reverse=True):
+        if today['avgTemp'] < key:
+            clothingOption = settings.tempPreference[key]
+        else:
+            break
 
-print("Choose for when you want to see the weather (Please select a number):")
-print("1.Right Now")
-print("2.Now to n hours from now(max n = 48)")
-print("3.From now to n days onward(max n = 7)")
-choice = input("Choice: ")
-day = forecast.currently()
-if choice == '1':
-    day = forecast.currently()
-    print(day.summary)
-    print(day.temperature)
-    print(day.precipProbability)
-    sys.exit()
-elif choice == '2':
-    day = forecast.hourly()
-    print(day.summary);
-elif choice == '3':
-    day = forecast.daily();
-    print(day.summary);
-else:
-    print("Incorrect choice");
-    sys.exit();
+    msg += clothingOption + '. '
 
-maxPrecipProb = 0
-for x in day.data:
-    print(x.precipProbability)
-    if x.precipProbability > maxPrecipProb:
-        maxPrecipProb = x.precipProbability
+    if today['maxPrecipChance'] > settings.precipThreshold:
+        if precipType is not 'snow':
+            msg += 'Bring an umbrella, there is a ' + str(today['maxPrecipChance']*100) + '%% chance of rain. '
+        else:
+            msg += 'You should layer up, there is a ' + str(today['maxPrecipChance']*100) + '%% chance of snow. '
+    elif today['avgCloudCover'] < 0.25:
+        msg += 'Consider some sunscreen/sunglasses, it\'s sunny today.'
 
-if maxPrecipProb > .85:
-    pb.push_note("Today's Weather Update", "It is going to rain")
-elif maxPrecipProb > .50:
-    pb.push_note("Today's Weather Update", "It's probably going to rain")
-elif maxPrecipProb > .20:
-    pb.push_note("Today's Weather Update", "It's probably not going to rain")
-else:
-    pb.push_note("Today's Weather Update", "It's not going to rain")
+    msg += '\nIt\'s going to be about ' + str(round(today['avgTemp'])) + '˚F today. (Low: ' + str(round(today['minTemp'])) + ', High: ' + str(round(today['maxTemp'])) +')'
+
+    print(msg)
+    pb.push_note("Today's Update", msg)
+
+
+def processDay(forecast):
+    today = forecast.hourly().data
+    avgTemp = 0;
+    avgCloudCover = 0;
+    maxPrecipChance = today[0].precipProbability
+    maxTemp = today[0].apparentTemperature
+    minTemp = maxTemp
+    for i in range(settings.hoursAhead):  # look at the coming hours of today, default 12 hours ahead
+
+        hr = today[i]
+        temp = hr.apparentTemperature
+        maxPrecipChance = hr.precipProbability if hr.precipProbability > maxPrecipChance else maxPrecipChance
+        avgCloudCover += hr.cloudCover
+        avgTemp += temp
+        maxTemp = temp if temp > maxTemp else maxTemp
+        minTemp = temp if temp < minTemp else minTemp
+
+    avgTemp /= settings.hoursAhead
+    avgCloudCover /= settings.hoursAhead
+
+    return {'maxTemp':maxTemp, 'minTemp':minTemp, 'avgTemp':avgTemp, 'avgCloudCover':avgCloudCover, 'maxPrecipChance':maxPrecipChance}
+
+if __name__ == '__main__':
+    main(sys.argv)
