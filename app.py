@@ -1,4 +1,5 @@
 import settings
+import gcal
 import forecastio
 import sys
 from pushbullet import Pushbullet
@@ -14,13 +15,20 @@ def main(argv):
     location = geolocator.geocode(settings.home)
     forecast = forecastio.load_forecast(settings.forecastioKey,location.latitude ,location.longitude )
 
-    precipType = forecast.daily().data[0].precipType
-    precipIntensity = forecast.daily().data[0].precipIntensity
+    precipType = 'None'
+    precipIntensity = 0
     today = processDay(forecast)
+
+    # Conditionally set precip type and intensity because they do not exist if
+    # there is no chance of precipitation
+    if forecast.daily().data[0].precipProbability is not 0:
+        precipType = forecast.daily().data[0].precipType
+        precipIntensity = forecast.daily().data[0].precipIntensity
+
 
 
     msg = 'You should wear '
-    clothingOption = 'summer clothes'
+    clothingOption = 'summer clothes, it\'s warm today'
     for key in sorted(settings.tempPreference, reverse=True):
         if today['avgTemp'] < key:
             clothingOption = settings.tempPreference[key]
@@ -31,11 +39,14 @@ def main(argv):
 
     if today['maxPrecipChance'] > settings.precipThreshold:
         if precipType is not 'snow':
-            msg += 'Bring an umbrella, there is a ' + str(today['maxPrecipChance']*100) + '%% chance of rain. '
+            msg += 'Bring an umbrella, there is a ' + str(today['maxPrecipChance']*100) + '% chance of rain. '
         else:
-            msg += 'You should layer up, there is a ' + str(today['maxPrecipChance']*100) + '%% chance of snow. '
-    elif today['avgCloudCover'] < 0.25:
-        msg += 'Consider some sunscreen/sunglasses, it\'s sunny today.'
+            msg += 'You should layer up, there is a ' + str(today['maxPrecipChance']*100) + '% chance of snow. '
+
+    if today['avgCloudCover'] < 0.25:
+        msg += 'Consider some sunscreen/sunglasses, it\'s going to be sunny today.'
+
+
 
     msg += '\nIt\'s going to be about ' + str(round(today['avgTemp'])) + '˚F today. (Low: ' + str(round(today['minTemp'])) + ', High: ' + str(round(today['maxTemp'])) +')'
 

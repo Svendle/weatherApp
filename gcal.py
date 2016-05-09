@@ -2,10 +2,14 @@
 
 
 import sys
+import argparse
+import httplib2
+import os
 
-from oauth2client import client
-from googleapiclient import sample_tools
+from oauth2client import client, file, tools
 from datetime import datetime, timezone, timedelta
+from apiclient import discovery
+
 
 
 def get_events(hour_offset=12, long_term=False, long_term_offset=7, include_calendars=[]):
@@ -21,9 +25,11 @@ def get_events(hour_offset=12, long_term=False, long_term_offset=7, include_cale
          A list of the events within the given bounds with location information
     """
     # Authenticate and construct service.
-    service, flags = sample_tools.init(
-        ['weatherApp.py', '--noauth_local_webserver'], 'calendar', 'v3', __doc__, __file__,
-        scope='https://www.googleapis.com/auth/calendar.readonly')
+    # service, flags = sample_tools.init(
+    #     ['weatherApp.py', '--noauth_local_webserver'], 'calendar', 'v3', __doc__, __file__,
+    #     scope='https://www.googleapis.com/auth/calendar.readonly')
+    # (argv, name, version, doc, filename, scope=None, parents=[]):
+    service = init_cal_service()
 
     try:
         page_token = None
@@ -66,6 +72,53 @@ def get_events(hour_offset=12, long_term=False, long_term_offset=7, include_cale
               'the application to re-authorize.')
 
     return filtered_events
+
+
+def init_cal_service():
+    """Creates googleapis service for calendar
+        Modified from the Google apiclient.sample_tools code which is
+        licensed under the Apache License, Version 2.0,
+        available at:
+        http://www.apache.org/licenses/LICENSE-2.0
+
+        Changes were made to remove unneeded arguments and add offline
+        access to the flow
+    """
+
+    name = 'calendar'
+    version = 'v3'
+    scope='https://www.googleapis.com/auth/calendar.readonly'
+
+    # Create the flags
+    parent_parsers = [tools.argparser]
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        parents=parent_parsers)
+    flags = parser.parse_args(['--noauth_local_webserver'])
+
+    client_secrets = os.path.join(os.path.dirname(__file__),
+                                  'client_secrets.json')
+
+    # Set up a Flow object to be used if we need to authenticate.
+    flow = client.flow_from_clientsecrets(client_secrets,
+        scope=scope,
+        message=tools.message_if_missing(client_secrets))
+    flow.params['access_type'] = 'offline'
+
+    # Prepare credentials, and authorize HTTP object with them.
+    # If the credentials don't exist or are invalid run through the native client
+    # flow. The Storage object will ensure that if successful the good
+    # credentials will get written back to a file.
+    storage = file.Storage(name + '.dat')
+    credentials = storage.get()
+    if credentials is None or credentials.invalid:
+      credentials = tools.run_flow(flow, storage, flags)
+    http = credentials.authorize(http = httplib2.Http())
+
+    # Construct a service object via the discovery service.
+    service = discovery.build(name, version, http=http)
+    return service
 
 if __name__ == '__main__':
     for event in get_events(include_calendars = ['Lab', 'Class', 'JHU', 'Personal']):
