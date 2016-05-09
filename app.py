@@ -57,7 +57,7 @@ def main(argv):
     for event in gcal.get_events(include_calendars = ['Lab', 'Class', 'JHU', 'Personal']):
         print(event['summary']+' - '+event['start']['dateTime'])
         print(event.get('location'))
-        
+        msg += event['summary']
     pb.push_note("Today's Update", msg)
 
 
