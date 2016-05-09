@@ -51,13 +51,6 @@ def main(argv):
     msg += '\nIt\'s going to be about ' + str(round(today['avgTemp'])) + '˚F today. (Low: ' + str(round(today['minTemp'])) + ', High: ' + str(round(today['maxTemp'])) +')'
 
     print(msg)
-
-    # ***REMOVE***
-    #test for automated cal access, remove later **REMOVE**
-    for event in gcal.get_events(include_calendars = ['Lab', 'Class', 'JHU', 'Personal']):
-        print(event['summary']+' - '+event['start']['dateTime'])
-        print(event.get('location'))
-        msg += event['summary']
     pb.push_note("Today's Update", msg)
 
 
