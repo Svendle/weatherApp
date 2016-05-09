@@ -19,7 +19,8 @@ def get_events(hour_offset=12, long_term=False, long_term_offset=7, include_cale
          hour_offset - max hours in the future for events
          long_term - option to get events from more days (excluding the short-term defined by hour_offset)
          long_term_offset - number of days into the future (only used when long_term = True)
-         include_calendars - calendars to be used, any calendars not in the list will be excluded
+         include_calendars - calendars to be used, any calendars not in the list will be excluded,
+                                if empty uses all calendars
 
         Return:
          A list of the events within the given bounds with location information

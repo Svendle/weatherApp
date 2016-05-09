@@ -15,6 +15,9 @@ def main(argv):
     location = geolocator.geocode(settings.home)
     forecast = forecastio.load_forecast(settings.forecastioKey,location.latitude ,location.longitude )
 
+    # Get the upcoming events for the day with location information
+    events = gcal.get_events(hour_offset=settings.hoursAhead, include_calendars=settings.include_calendars)
+
     precipType = 'None'
     precipIntensity = 0
     today = processDay(forecast)
